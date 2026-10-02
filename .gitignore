@@ -1,0 +1,14 @@
+# Match Report ufficiali (PDF della Lega Serie A): pesanti e non redistribuibili.
+# Il dataset estratto è in data/processed/ ed è versionato.
+data/**/*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Streamlit: credenziali locali (la config del tema invece è versionata)
+.streamlit/secrets.toml
+
+# Sistema
+.DS_Store

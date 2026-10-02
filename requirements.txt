@@ -1,0 +1,11 @@
+# Dashboard e parsing dei PDF (testato con Python 3.11)
+streamlit>=1.56,<2
+pandas>=2.3,<3
+numpy>=2.2,<3
+plotly>=6.0,<7
+pdfplumber>=0.11,<0.12
+
+# Notebook di sviluppo (exploration.ipynb)
+matplotlib>=3.10,<4
+adjustText>=1.4,<2
+ipykernel>=6.25
