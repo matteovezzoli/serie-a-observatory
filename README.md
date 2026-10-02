@@ -1,5 +1,7 @@
 # Serie A Observatory
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://serie-a-observatory.streamlit.app)
+
 An interactive Serie A analytics dashboard built **from the official Lega Serie A Match Report PDFs**: automatic data extraction from the PDFs, team and player statistics, rankings, comparisons and scouting tools.
 
 The analytical goal is to **separate an individual player's value from the context of their team**, to find players who perform better than their team's numbers suggest. In a team near the bottom of the table absolute volumes are low for everyone, so the dashboard relies on normalised measures: per-90 rates, share of team output and percentiles.
