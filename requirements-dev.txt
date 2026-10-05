@@ -1,0 +1,5 @@
+# Notebook di sviluppo (exploration.ipynb): requisiti della dashboard + grafici del notebook
+-r requirements.txt
+matplotlib>=3.10,<4
+adjustText>=1.4,<2
+ipykernel>=6.25

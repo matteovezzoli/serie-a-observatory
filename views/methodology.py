@@ -52,6 +52,12 @@ it to the nearest header column, recalibrating the columns on every single page.
 red) are told apart by their position within the dedicated header zone. Across all matches read, no value was
 left unassigned.
 
+#### Updates
+The dataset is refreshed **automatically every week**: new Match Reports are downloaded from the League's website,
+read, checked and added. The League often re-publishes a report a few days after the match with corrected figures:
+corrected reports are detected and their matches read again, so the latest matchday may change slightly after
+the first publication.
+
 #### Views and thresholds
 - **Season**: every match up to the selected matchday. **Single matchday**: only that round's matches.
 - The **table** is always the real one up to the selected matchday.

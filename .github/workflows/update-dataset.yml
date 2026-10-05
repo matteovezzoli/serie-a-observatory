@@ -1,0 +1,48 @@
+# Aggiornamento settimanale del dataset dai Match Report ufficiali.
+# Il giovedì: le partite del weekend sono uscite e la Lega di solito ricarica
+# i report corretti entro il mercoledì. Le correzioni che arrivano più tardi
+# vengono comunque riconosciute al run successivo.
+# Se ci sono novità committa i CSV; Streamlit Cloud ridistribuisce la dashboard.
+name: Update dataset
+
+on:
+  schedule:
+    - cron: "0 5 * * 4"   # giovedì 05:00 UTC
+  workflow_dispatch:       # avvio manuale dalla tab Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-dataset
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download and parse new or corrected Match Reports
+        run: python update_dataset.py
+
+      - name: Commit the updated dataset
+        run: |
+          git add data/processed
+          if git diff --cached --quiet; then
+            echo "Dataset unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update dataset ($(date -u +%Y-%m-%d))"
+          git push

@@ -1,14 +1,15 @@
 """Dataset estratto dai Match Report, salvato in CSV leggibili.
 
 I PDF ufficiali restano la fonte, ma non vanno nel repository (peso e
-diritti della Lega). Dopo ogni lettura dei PDF la dashboard salva qui le
-due tabelle grezze; senza PDF (es. dopo un clone da GitHub) le rilegge da
-qui. Tutto il resto (classifiche, per 90', percentili...) è ricalcolato a
-partire da queste due tabelle.
+diritti della Lega). update_dataset.py li scarica, li legge e scrive qui le
+due tabelle grezze; la dashboard legge solo questi CSV. Tutto il resto
+(classifiche, per 90', percentili...) è ricalcolato a partire da qui.
 
 - matches.csv: una riga per partita (metadati + 16 statistiche squadra
   casa/ospite + stato di lettura di ogni metrica)
 - players.csv: una riga per giocatore per partita (tabellino individuale)
+- reports.csv: registro dei Match Report letti (data di aggiornamento,
+  competizione), usato da update_dataset.py per riconoscere i report corretti
 """
 
 from __future__ import annotations

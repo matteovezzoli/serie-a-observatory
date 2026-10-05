@@ -1,6 +1,6 @@
-"""Aggregazione season-level: legge tutte le giornate disponibili in
-`data/` e costruisce i tre dataset usati a valle (match, squadra-partita,
-riepilogo di squadra).
+"""Aggregazione season-level: dalla tabella delle partite (matches.csv)
+costruisce i dataset usati a valle (squadra-partita, riepilogo di squadra,
+classifica).
 
 NOTA rispetto alla Cella 3 del notebook: lì un quality check fallito
 solleva un'eccezione (`raise ValueError(...)`), corretto per un notebook
@@ -12,13 +12,11 @@ invece di andare in crash per una singola partita problematica.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
 from src.metrics import METRIC_PANELS
-from src.parsing import CORE_METRICS, parse_full_report
+from src.parsing import CORE_METRICS
 
 # Metriche per cui uno 0 reale è plausibile nel calcio (il PDF le rende blank)
 PLAUSIBLE_ZERO_METRICS = {
@@ -28,54 +26,6 @@ PLAUSIBLE_ZERO_METRICS = {
 
 # Metriche che in una partita professionistica non sono mai 0
 NEVER_ZERO_METRICS = {"Passaggi riusciti", "Passaggi riusciti/tentati (%)", "Recuperi"}
-
-
-def discover_round_dirs(base_data_dir: Path) -> list[Path]:
-    """Sottocartelle di base_data_dir che contengono almeno un PDF
-    (es. data/prima, data/seconda, ...). L'ordine cronologico reale è
-    letto dal campo 'giornata' dentro ogni PDF, non dal nome cartella."""
-    return sorted(
-        d for d in base_data_dir.iterdir()
-        if d.is_dir() and any(d.glob("*.pdf"))
-    )
-
-
-def data_signature(round_dirs: list[Path]) -> tuple:
-    """Firma (nome file, mtime) di tutti i PDF trovati: usata come cache key
-    per invalidare automaticamente la cache Streamlit quando aggiungi una
-    nuova giornata o sostituisci un PDF, senza doverla svuotare a mano."""
-    return tuple(
-        (p.name, p.stat().st_mtime_ns)
-        for d in round_dirs
-        for p in sorted(d.glob("*.pdf"))
-    )
-
-
-def build_match_stats_df(round_dirs: list[Path]) -> tuple[pd.DataFrame, list[dict]]:
-    """Parsa tutti i PDF in round_dirs. Ritorna (match_stats_df, parse_errors):
-    un PDF che fallisce il parsing finisce in parse_errors invece di far
-    crashare l'intero batch."""
-    records: list[dict] = []
-    parse_errors: list[dict] = []
-
-    for round_dir in round_dirs:
-        for pdf_path in sorted(round_dir.glob("*.pdf")):
-            try:
-                records.append(parse_full_report(pdf_path))
-            except Exception as exc:
-                parse_errors.append({
-                    "folder": round_dir.name,
-                    "file": pdf_path.name,
-                    "error": str(exc),
-                })
-
-    match_stats_df = (
-        pd.DataFrame(records)
-        .sort_values(["giornata", "match_id"])
-        .reset_index(drop=True)
-    ) if records else pd.DataFrame()
-
-    return match_stats_df, parse_errors
 
 
 def build_team_tables(

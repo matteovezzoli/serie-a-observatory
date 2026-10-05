@@ -1,11 +1,12 @@
 """Serie A Match Report Observatory — dashboard Streamlit (multipagina).
 
 Lancio: streamlit run app.py
-Struttura dati attesa: data/prima/*.pdf, data/seconda/*.pdf, ...
 
-Questo file carica i dati (in cache, invalidata quando cambiano i PDF),
-disegna i filtri globali nella barra laterale e instrada verso le pagine in
-views/. Ogni pagina riceve lo stesso Context (src/context.py).
+Questo file carica il dataset in data/processed/ (in cache, invalidata quando
+cambiano i CSV), disegna i filtri globali nella barra laterale e instrada
+verso le pagine in views/. Ogni pagina riceve lo stesso Context
+(src/context.py). I PDF non vengono letti qui: il dataset è prodotto e
+aggiornato da update_dataset.py (a mano o dal workflow settimanale).
 
 Nota: src/data_quality.py (riconciliazione giocatori-vs-squadra) NON va mai
 importato qui — è un controllo del parser a uso esclusivo del notebook.
@@ -14,17 +15,14 @@ importato qui — è un controllo del parser a uso esclusivo del notebook.
 from __future__ import annotations
 
 from functools import partial
-from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 from src import ui
-from src.aggregation import build_match_stats_df, data_signature, discover_round_dirs
 from src.context import Context, build_context
-from src.dataset import dataset_available, dataset_signature, export_dataset, load_dataset
+from src.dataset import dataset_available, dataset_signature, load_dataset
 from src.player_aggregation import default_thresholds
-from src.player_parsing import build_player_stats_df
 from views import (
     matches,
     methodology,
@@ -40,8 +38,6 @@ from views import (
     team_styles,
 )
 
-BASE_DATA_DIR = Path("data")
-
 st.set_page_config(
     page_title="Serie A Observatory",
     page_icon=":material/sports_soccer:",
@@ -56,46 +52,25 @@ ui.reset_keys()
 # Caricamento dati
 # --------------------------------------------------------------------------- #
 
-@st.cache_data(show_spinner="Reading the Match Reports…", persist="disk")
-def load_from_pdfs(round_dirs: tuple[Path, ...], signature: tuple) -> tuple[pd.DataFrame, pd.DataFrame, list[dict]]:
-    """Legge i PDF e salva il dataset in data/processed/ (CSV versionabili)."""
-    match_stats_df, match_errors = build_match_stats_df(list(round_dirs))
-    player_stats_df, player_errors = build_player_stats_df(list(round_dirs))
-    if not match_stats_df.empty:
-        export_dataset(match_stats_df, player_stats_df)
-    return match_stats_df, player_stats_df, match_errors + player_errors
-
-
 @st.cache_data(show_spinner="Loading the dataset…")
-def load_from_csv(signature: tuple) -> tuple[pd.DataFrame, pd.DataFrame, list[dict]]:
-    match_stats_df, player_stats_df = load_dataset()
-    return match_stats_df, player_stats_df, []
-
-
-def load_data(source: str, signature: tuple) -> tuple[pd.DataFrame, pd.DataFrame, list[dict]]:
-    return load_from_pdfs(tuple(round_dirs), signature) if source == "pdf" else load_from_csv(signature)
+def load_data(signature: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
+    return load_dataset()
 
 
 @st.cache_data(show_spinner=False)
 def load_context(
-    source: str, signature: tuple, giornata: int, single_round: bool, min_minutes: int, min_passes: int,
+    signature: tuple, giornata: int, single_round: bool, min_minutes: int, min_passes: int,
 ) -> Context:
-    match_stats_df, player_stats_df, _ = load_data(source, signature)
+    match_stats_df, player_stats_df = load_data(signature)
     return build_context(match_stats_df, player_stats_df, giornata, single_round, min_minutes, min_passes)
 
 
-# Fonte dati: i PDF se presenti (e il dataset CSV viene rigenerato), altrimenti
-# il dataset già estratto in data/processed/ (es. repository clonato senza PDF).
-round_dirs = discover_round_dirs(BASE_DATA_DIR) if BASE_DATA_DIR.exists() else []
-if round_dirs:
-    source, signature = "pdf", data_signature(round_dirs)
-elif dataset_available():
-    source, signature = "csv", dataset_signature()
-else:
-    st.error(f"No PDFs under '{BASE_DATA_DIR}/' and no dataset in 'data/processed/'.")
+if not dataset_available():
+    st.error("No dataset in 'data/processed/'. Run `python update_dataset.py` to build it.")
     st.stop()
 
-match_stats_df, player_stats_df, all_errors = load_data(source, signature)
+signature = dataset_signature()
+match_stats_df, player_stats_df = load_data(signature)
 
 if match_stats_df.empty:
     st.error("No data available.")
@@ -149,11 +124,7 @@ with st.sidebar:
             key=f"min_passes_{n_giornate_vista}_{single_round}",
         )
 
-    if all_errors:
-        with st.expander(f"⚠️ {len(all_errors)} PDFs not read"):
-            st.dataframe(pd.DataFrame(all_errors), hide_index=True)
-
-ctx = load_context(source, signature, int(giornata), single_round, int(min_minutes), int(min_passes))
+ctx = load_context(signature, int(giornata), single_round, int(min_minutes), int(min_passes))
 ctx.highlight_team = None if highlight == "—" else highlight
 
 quality_all = pd.concat([ctx.quality_df, ctx.players.quality_df], ignore_index=True)

@@ -36,8 +36,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pandas as pd
-
 from src.parsing import (
     NUMERIC_TOKEN,
     extract_match_metadata,
@@ -239,30 +237,3 @@ def parse_player_stats(report_path: Path) -> list[dict]:
         records.append(row)
 
     return records
-
-
-# --------------------------------------------------------------------------- #
-# Aggregazione multi-giornata (parallelo a build_match_stats_df)
-# --------------------------------------------------------------------------- #
-
-def build_player_stats_df(round_dirs: list[Path]) -> tuple[pd.DataFrame, list[dict]]:
-    """Parsa STATISTICHE GIOCATORE per tutti i PDF in round_dirs.
-    Ritorna (player_stats_df, parse_errors) — stesso pattern di
-    aggregation.build_match_stats_df: un PDF che fallisce finisce negli
-    errori invece di far crashare il batch."""
-    records: list[dict] = []
-    parse_errors: list[dict] = []
-
-    for round_dir in round_dirs:
-        for pdf_path in sorted(round_dir.glob("*.pdf")):
-            try:
-                records.extend(parse_player_stats(pdf_path))
-            except Exception as exc:
-                parse_errors.append({
-                    "folder": round_dir.name,
-                    "file": pdf_path.name,
-                    "error": str(exc),
-                })
-
-    player_stats_df = pd.DataFrame(records) if records else pd.DataFrame()
-    return player_stats_df, parse_errors

@@ -1,8 +1,9 @@
 # Serie A Observatory
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://serie-a-observatory.streamlit.app)
+[![Update dataset](https://github.com/matteovezzoli/serie-a-observatory/actions/workflows/update-dataset.yml/badge.svg)](https://github.com/matteovezzoli/serie-a-observatory/actions/workflows/update-dataset.yml)
 
-An interactive Serie A analytics dashboard built **from the official Lega Serie A Match Report PDFs**: automatic data extraction from the PDFs, team and player statistics, rankings, comparisons and scouting tools.
+An interactive Serie A analytics dashboard built **from the official Lega Serie A Match Report PDFs**: automatic data extraction from the PDFs, team and player statistics, rankings, comparisons and scouting tools. The dataset **updates itself every week** through a GitHub Actions pipeline.
 
 The analytical goal is to **separate an individual player's value from the context of their team**, to find players who perform better than their team's numbers suggest. In a team near the bottom of the table absolute volumes are low for everyone, so the dashboard relies on normalised measures: per-90 rates, share of team output and percentiles.
 
@@ -51,8 +52,23 @@ The PDFs are **not included** in the repository (size and rights). The extracted
 |---|---|
 | `matches.csv` | one row per match: result and home/away team statistics |
 | `players.csv` | one row per player per match: individual match sheet |
+| `reports.csv` | log of every Match Report processed: competition, publication and last-update date |
 
-Current coverage: **matchdays 1–5 of the 2026/27 season, 50 matches, 1,590 player rows**.
+Coverage: the **2026/27 season**, updated every week (the dashboard sidebar shows the matches and matchdays currently loaded).
+
+---
+
+## Automated updates
+
+The dataset is kept up to date by a small pipeline, [`update_dataset.py`](update_dataset.py), run every Thursday by a [GitHub Actions workflow](.github/workflows/update-dataset.yml):
+
+1. **Find the reports.** The League's website loads its documents from a public content API: the script asks it for every document tagged *Match Report* published this season.
+2. **Download only what changed.** Each report is compared with `reports.csv`: new matches are downloaded, and so are reports **the League has re-published**. Reports are often corrected 0–12 days after the match (minutes played, passes, recoveries…), so a report whose last-update date is newer than the one on record is read again and its rows are replaced.
+3. **Keep only Serie A.** The same feed carries Coppa Italia reports: they are recognised from the PDF header and logged as skipped, so they are never downloaded again.
+4. **Parse and validate.** The new PDFs go through the same parser as the rest of the project. A report that cannot be read, a value not assigned to a column or a match already present under another file stops the run.
+5. **Publish.** If everything passes, the CSVs are committed by `github-actions[bot]` and Streamlit Cloud redeploys the dashboard.
+
+If a check fails **nothing is written**: the workflow turns red, GitHub sends an email and the dashboard keeps showing the previous data, never partial data.
 
 ---
 
@@ -80,12 +96,17 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The dashboard starts from the dataset in `data/processed/`, no PDFs needed.
+The dashboard reads the dataset in `data/processed/`, no PDFs needed. For the development notebook: `pip install -r requirements-dev.txt`.
 
-### Adding a matchday
+### Updating the data by hand
 
-1. Download the Match Reports and put them in a new folder: `data/<matchday>/*.pdf`.
-2. Start the dashboard: the PDFs are read, the CSVs in `data/processed/` are regenerated and the new data shows up immediately. The first read takes a few minutes; the result is then cached until the PDFs change.
+```bash
+python update_dataset.py             # new matches and corrected reports
+python update_dataset.py --dry-run   # show what would be downloaded
+python update_dataset.py --rebuild   # re-read the whole season (e.g. after a parser change)
+```
+
+The workflow can also be started from the repository's *Actions* tab (*Update dataset → Run workflow*). At the start of a new season, update `SEASON` and `SEASON_START` in `update_dataset.py`: the script stops with an explicit message if it finds Serie A reports of a different season.
 
 ---
 
@@ -93,6 +114,8 @@ The dashboard starts from the dataset in `data/processed/`, no PDFs needed.
 
 ```
 ├── app.py                    # entry point: data loading, filters, navigation
+├── update_dataset.py         # data pipeline: download, parse, validate, update the CSVs
+├── .github/workflows/        # weekly dataset update (GitHub Actions)
 ├── views/                    # one dashboard page per module
 ├── src/
 │   ├── parsing.py            # team statistics extraction from the PDFs
@@ -105,7 +128,7 @@ The dashboard starts from the dataset in `data/processed/`, no PDFs needed.
 │   ├── plotting.py           # Plotly charts and chart theme
 │   ├── ui.py                 # interface components and styling
 │   ├── context.py            # data of the current view, shared by all pages
-│   ├── dataset.py            # CSV dataset export/loading
+│   ├── dataset.py            # CSV dataset read/write
 │   └── data_quality.py       # player vs team reconciliation (notebook only)
 ├── exploration.ipynb         # development notebook and parser validation (in Italian)
 ├── data/processed/           # extracted dataset (CSV)
@@ -121,6 +144,7 @@ Code comments and the development notebook are in Italian; the dashboard and thi
 - **No positions in the match sheet**: the PDF does not say where a player plays, so rankings mix roles. That is why the dashboard avoids a single overall score and favours multi-dimensional comparisons, shares of team output and similar players.
 - **No event data**: no expected goals or shot locations; efficiency (goals/shots) cannot tell easy chances from hard ones.
 - **Small samples**: early in the season percentages and shares can change a lot from one matchday to the next.
+- **Preliminary reports**: until the League publishes its corrected version, the latest matches may show provisional figures; they are replaced automatically at the next update.
 - **Estimated attempted passes**: rebuilt from completed passes and percentage, which the PDF rounds.
 
 Full details on the dashboard's *Methodology & glossary* page.
@@ -129,7 +153,7 @@ Full details on the dashboard's *Methodology & glossary* page.
 
 ## Tech stack
 
-Python · pdfplumber · pandas · NumPy · Plotly · Streamlit
+Python · pdfplumber · pandas · NumPy · Plotly · Streamlit · GitHub Actions
 
 ---
 

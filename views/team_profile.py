@@ -77,11 +77,13 @@ def render(ctx: Context) -> None:
         if not ctx.single_round and not split.empty and {"ppg_home", "ppg_away"} <= set(split.columns):
             s = split.set_index("team").loc[team]
             with ui.card("Home and away", "Average output per match at each venue."):
-                h, a = st.columns(2)
-                h.metric("Home · points/match", f"{s['ppg_home']:.2f}", border=True,
-                         help=f"{int(s['matches_home'])} matches · goals {s['gf_home']:.1f}–{s['ga_home']:.1f} per match")
-                a.metric("Away · points/match", f"{s['ppg_away']:.2f}", border=True,
-                         help=f"{int(s['matches_away'])} matches · goals {s['gf_away']:.1f}–{s['ga_away']:.1f} per match")
+                for col, venue, label in zip(st.columns(2), ("home", "away"), ("Home", "Away")):
+                    if pd.isna(s[f"matches_{venue}"]):  # es. alla 1ª giornata: nessuna partita in questa sede
+                        col.metric(f"{label} · points/match", "—", border=True, help="No matches at this venue yet.")
+                        continue
+                    col.metric(f"{label} · points/match", f"{s[f'ppg_{venue}']:.2f}", border=True,
+                               help=f"{int(s[f'matches_{venue}'])} matches · goals "
+                                    f"{s[f'gf_{venue}']:.1f}–{s[f'ga_{venue}']:.1f} per match")
 
     ui.section("Matches played", "Every team statistic for each match in the view.")
     games = ctx.team_match_df[ctx.team_match_df["team"] == team].sort_values("giornata").copy()
