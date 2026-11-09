@@ -85,6 +85,11 @@ def list_match_reports(since: str) -> list[dict]:
         items = page.get("items", [])
         for item in items:
             file = item.get("file") or {}
+            # la Lega a volte etichetta 'match-report' anche i programmi pre-partita
+            # (<id>_<SQUADRE>_MatchProgram_IT/EN.pdf, senza risultato): si tengono
+            # solo i Match Report veri, che arrivano dopo la partita
+            if "_MatchReport_" not in file.get("originalFileName", ""):
+                continue
             if item.get("contentDate", "") >= since and file.get("downloadUrl"):
                 reports.append({
                     "pdf_name": file["originalFileName"],
